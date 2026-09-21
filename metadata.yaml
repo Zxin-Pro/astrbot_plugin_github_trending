@@ -1,0 +1,6 @@
+name: astrbot_plugin_github_trending
+display_name: GitHub Trending
+desc: 获取每日 GitHub 星标涨幅最高的十个项目，支持手动查询、语言筛选与每日定时推送，深色 GitHub 风格排行榜图片渲染。
+version: v1.0.0
+author: Zxin_Pro
+repo: https://github.com/Zxin-Pro/astrbot_plugin_github_trending

@@ -1,0 +1,50 @@
+{
+  "push_enabled": {
+    "description": "启用每日定时推送",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后仅在群里使用 /github 指令时查询，不主动推送"
+  },
+  "push_time": {
+    "description": "每日推送时间",
+    "type": "string",
+    "default": "09:00",
+    "hint": "24 小时制 HH:MM 格式，例如 09:00、21:30"
+  },
+  "push_target": {
+    "description": "推送目标",
+    "type": "string",
+    "default": "",
+    "hint": "群号或用户 ID，多个用英文逗号分隔。推荐填写完整 unified_msg_origin（格式 平台:消息类型:ID，如 aiocqhttp:GroupMessage:123456）；填纯数字 ID 时默认按 aiocqhttp 平台群聊处理"
+  },
+  "language_filter": {
+    "description": "编程语言过滤",
+    "type": "string",
+    "default": "",
+    "hint": "如 python、rust、go，留空为全部语言。可临时用 /github <语言> 覆盖"
+  },
+  "max_items": {
+    "description": "榜单条目数",
+    "type": "int",
+    "default": 10,
+    "hint": "展示前 N 个项目（按今日新增星数降序）"
+  },
+  "enable_image_render": {
+    "description": "启用图片渲染",
+    "type": "bool",
+    "default": true,
+    "hint": "使用 Pillow 渲染深色 GitHub 风格排行榜图片，渲染失败自动回退文本消息"
+  },
+  "translate_enabled": {
+    "description": "中文翻译",
+    "type": "bool",
+    "default": true,
+    "hint": "通过 Google 免费接口将英文描述翻译为中文，失败时静默保留原文"
+  },
+  "proxy": {
+    "description": "网络代理",
+    "type": "string",
+    "default": "",
+    "hint": "HTTP/HTTPS/SOCKS5 代理地址，如 http://127.0.0.1:7890，留空直连"
+  }
+}
