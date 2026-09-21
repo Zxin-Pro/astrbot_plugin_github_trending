@@ -24,6 +24,76 @@ try:
 except ImportError:  # 直接以脚本方式测试时
     from fetcher import RepoInfo
 
+# ── t2i 直连渲染（烛之播报模板，与积分游戏钓鱼播报同款）────────────────────
+
+T2I_DIRECT_ENDPOINTS = ["https://t2i.soulter.top/text2img"]
+
+try:
+    from .t2i_template import TRENDING_T2I_TEMPLATE
+except ImportError:
+    from t2i_template import TRENDING_T2I_TEMPLATE
+
+
+async def render_trending_t2i(repos: list, language: str = "", date_str: str = "") -> bytes:
+    """用烛之播报 t2i 模板渲染榜单，返回图片字节（jpeg）。
+
+    依次尝试 trust_env=False（直连）与 trust_env=True（走系统代理）。
+    """
+    import html as _html
+    import aiohttp
+
+    def esc(s: str) -> str:
+        return _html.escape(str(s), quote=False)
+
+    tmpl_data = {
+        "title": "GitHub Trending 实况" + (f" · {language}" if language else ""),
+        "date": date_str,
+        "repos": [
+            {
+                "rank": r.rank,
+                "name": esc(r.full_name),
+                "count": esc(f"+{r.stars_today} today · ⭐ {r.stars_str}"),
+                "events": [e for e in [
+                    esc(r.description) if r.description else "",
+                    esc(f"· 语言 {r.language}") if r.language else "",
+                    esc(r.url),
+                ] if e],
+            }
+            for r in repos
+        ],
+    }
+    post = {
+        "tmpl": TRENDING_T2I_TEMPLATE, "json": True, "tmpldata": tmpl_data,
+        "options": {"full_page": True, "type": "jpeg", "quality": 70},
+    }
+    last_exc = None
+    for ep in T2I_DIRECT_ENDPOINTS:
+        for trust_env in (False, True):
+            try:
+                async with aiohttp.ClientSession(trust_env=trust_env) as session:
+                    async with session.post(
+                        f"{ep}/generate", json=post,
+                        headers={"User-Agent": "AstrBot/t2i"},
+                        timeout=aiohttp.ClientTimeout(total=90),
+                    ) as resp:
+                        if resp.status != 200:
+                            raise RuntimeError(f"HTTP {resp.status}")
+                        ret = await resp.json()
+                    img_url = f"{ep}/{ret['data']['id']}"
+                    async with session.get(
+                        img_url, headers={"User-Agent": "AstrBot/t2i"},
+                        timeout=aiohttp.ClientTimeout(total=60),
+                    ) as img_resp:
+                        if img_resp.status != 200:
+                            raise RuntimeError(f"HTTP {img_resp.status}")
+                        raw = await img_resp.read()
+                if raw:
+                    return raw
+                raise RuntimeError("t2i 返回空图片")
+            except Exception as e:
+                last_exc = e
+    raise last_exc or RuntimeError("t2i 直连渲染失败")
+
 # ── 渲染倍率 ──────────────────────────────────────────────────────────────
 SCALE = 2  # 2x 渲染：1600px 宽
 

@@ -22,11 +22,11 @@ from astrbot.api.star import Context, Star, register
 
 try:
     from .fetcher import RepoInfo, TrendingFetcher, build_trending_url
-    from .renderer import render_trending
+    from .renderer import render_trending, render_trending_t2i
     from .translator import Translator
 except ImportError:  # 允许直接以脚本方式调试
     from fetcher import RepoInfo, TrendingFetcher, build_trending_url
-    from renderer import render_trending
+    from renderer import render_trending, render_trending_t2i
     from translator import Translator
 
 PLUGIN_NAME = "astrbot_plugin_github_trending"
@@ -178,9 +178,20 @@ class GitHubTrendingPlugin(Star):
         return "\n".join(lines)
 
     async def _render_image(self, repos: list, language: str) -> bytes | None:
-        """渲染排行榜图片，失败返回 None。"""
+        """渲染排行榜图片：烛之播报 t2i 模板 → Pillow 兜底，失败返回 None。"""
         if not self._image_enabled():
             return None
+        # 首选：烛之播报 t2i 模板（与钓鱼播报同款视觉）
+        try:
+            try:
+                from zoneinfo import ZoneInfo
+                date_str = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%m月%d日 %H:%M")
+            except Exception:
+                date_str = datetime.now().strftime("%m月%d日 %H:%M")
+            return await render_trending_t2i(repos, language=language, date_str=date_str)
+        except Exception as e:
+            logger.warning(f"[GitHubTrending] 烛之播报 t2i 渲染失败，改用本地 Pillow: {e}")
+        # 兜底：本地 Pillow 渲染（自带字体，不依赖外部服务）
         try:
             return render_trending(repos, language=language)
         except Exception as e:
@@ -352,10 +363,14 @@ class GitHubTrendingPlugin(Star):
         # 4. 渲染
         if self._image_enabled() and repos:
             try:
-                img = render_trending(repos[:3], language=language)
-                report.append(f"✅ 渲染: 图片生成正常（{len(img) // 1024}KB，2x 缩放）")
+                img = await render_trending_t2i(repos[:3], language=language, date_str="诊断测试")
+                report.append(f"✅ 渲染(t2i 烛之播报): 图片生成正常（{len(img) // 1024}KB）")
             except Exception as e:
-                report.append(f"⚠️ 渲染: {e}（将回退文本消息，需检查 Pillow/字体）")
+                try:
+                    img = render_trending(repos[:3], language=language)
+                    report.append(f"⚠️ 渲染: t2i 不可达（{e}），已回退本地 Pillow（{len(img) // 1024}KB）")
+                except Exception as e2:
+                    report.append(f"❌ 渲染: t2i 与 Pillow 均失败 t2i={e} pillow={e2}，将回退文本消息")
         elif not self._image_enabled():
             report.append("⏭️ 渲染: 已关闭（文本输出）")
         else:
